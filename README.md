@@ -27,14 +27,19 @@ This plugin allows you to easily add a random photo gallery to your WordPress si
 4. Adjust the gallery settings as desired (e.g., `count`, `size`).
 5. Use the shortcode `[frg_gallery]` in your page or post content to display the random photo gallery.
 
+![AdminScreen](https://github.com/user-attachments/assets/35c9f787-f222-4a5b-a0eb-965ebb43434c)
+
 **Example Usage**
 -----------------
 
 ```php
-[frg_gallery count="3" size="medium"]
+[frg_gallery count="4" size="medium"]
 ```
 
-This will display a 3-column, medium-sized gallery with random photos from selected Flickr albums.
+This will display a 4-column, medium-sized gallery with random photos from selected Flickr albums.
+
+![Gallery](https://github.com/user-attachments/assets/69851281-f31e-4fe7-9863-9f372674218e)
+
 
 **Troubleshooting**
 ------------------
