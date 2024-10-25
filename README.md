@@ -1,7 +1,7 @@
 Here is a sample README file for the Flickr Random Gallery WordPress plugin:
 
-**Flickr Random Gallery**
-==========================
+**Flickr Random Gallery WordPress Plugin**
+=========================================
 
 A WordPress plugin that displays random photos from selected Flickr albums using a shortcode with async loading.
 
