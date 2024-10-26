@@ -6,25 +6,34 @@ if (!defined('ABSPATH')) {
 // Register shortcode
 add_shortcode('flickr_random_gallery', 'frg_display_gallery');
 function frg_display_gallery($atts) {
-    global $wpdb;
-    $table_name = $wpdb->prefix . 'frg_cache';
-
     $atts = shortcode_atts(array(
         'columns' => 3,
         'count' => 9,
         'target' => '_blank'
     ), $atts);
 
-    // Add count to the gallery div data attributes
-    $html = '<div class="flickr-random-gallery"
+    // Add a container div to wrap both gallery and button
+    $html = '<div class="flickr-random-gallery-container">';
+
+    // Gallery div remains the same
+    $html .= '<div class="flickr-random-gallery"
         data-columns="' . esc_attr($atts['columns']) . '"
         data-count="' . esc_attr($atts['count']) . '"
         data-target="' . esc_attr($atts['target']) . '"
         style="display: grid; grid-template-columns: repeat(' . esc_attr($atts['columns']) . ', 1fr); gap: 20px;">';
-
     $html .= '</div>';
 
-    // Add inline styles once
+    // Add refresh button
+    $html .= '<div class="gallery-refresh-container" style="text-align: center; margin-top: 20px;">
+        <button class="gallery-refresh-button button loading" style="align-items: center; display: inline-flex; gap: 5px;">
+            <span class="dashicons dashicons-image-rotate" style="height: auto; font-size: 16px;"></span>
+            <span class="button-text">Loading Photos</span>
+        </button>
+    </div>';
+
+    $html .= '</div>'; // Close container
+
+    // Add styles once
     static $styles_added = false;
     if (!$styles_added) {
         $html .= '<style>
@@ -65,6 +74,39 @@ function frg_display_gallery($atts) {
                 border: 2px solid white;
                 border-radius: 4px;
                 font-size: 14px;
+            }
+            .gallery-refresh-button {
+                padding: 8px 16px;
+                background: #0073aa;
+                color: white;
+                border: none;
+                border-radius: 4px;
+                cursor: pointer;
+                transition: background 0.2s ease;
+            }
+            .gallery-refresh-button .button-text {
+                transition: opacity 0.2s ease;
+            }
+            .gallery-refresh-button.loading {
+                opacity: 0.7;
+                cursor: wait;
+            }
+            .gallery-refresh-button:hover {
+                background: #006291;
+            }
+            .gallery-refresh-button.loading {
+                opacity: 0.7;
+                cursor: wait;
+            }
+            .gallery-refresh-button .dashicons {
+                transition: transform 0.3s ease;
+            }
+            .gallery-refresh-button.loading .dashicons {
+                animation: spin 1s linear infinite;
+            }
+            @keyframes spin {
+                from { transform: rotate(0deg); }
+                to { transform: rotate(360deg); }
             }
         </style>';
         $styles_added = true;
