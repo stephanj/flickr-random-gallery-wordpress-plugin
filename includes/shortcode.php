@@ -6,28 +6,71 @@ if (!defined('ABSPATH')) {
 // Register shortcode
 add_shortcode('flickr_random_gallery', 'frg_display_gallery');
 function frg_display_gallery($atts) {
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'frg_cache';
+
     $atts = shortcode_atts(array(
         'columns' => 3,
         'count' => 9,
         'target' => '_blank'
     ), $atts);
 
-    return sprintf(
-        '<div class="flickr-random-gallery"
-              data-columns="%d"
-              data-count="%d"
-              data-target="%s"
-              style="display: grid; grid-template-columns: repeat(%d, 1fr); gap: 20px;">
-            <div class="frg-loading">
-                <div class="frg-spinner"></div>
-                <p>Loading gallery...</p>
-            </div>
-         </div>',
-        esc_attr($atts['columns']),
-        esc_attr($atts['count']),
-        esc_attr($atts['target']),
-        esc_attr($atts['columns'])
-    );
+    // Add count to the gallery div data attributes
+    $html = '<div class="flickr-random-gallery"
+        data-columns="' . esc_attr($atts['columns']) . '"
+        data-count="' . esc_attr($atts['count']) . '"
+        data-target="' . esc_attr($atts['target']) . '"
+        style="display: grid; grid-template-columns: repeat(' . esc_attr($atts['columns']) . ', 1fr); gap: 20px;">';
+
+    $html .= '</div>';
+
+    // Add inline styles once
+    static $styles_added = false;
+    if (!$styles_added) {
+        $html .= '<style>
+            .gallery-item .image-wrapper {
+                overflow: hidden;
+                position: relative;
+            }
+            .gallery-item .image-wrapper img {
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+                display: block;
+                transform: scale(1);
+                transition: transform 0.3s ease-in-out;
+            }
+            .gallery-item .image-wrapper:hover img {
+                transform: scale(1.1);
+            }
+            .gallery-item .overlay {
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0, 0, 0, 0.5);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                opacity: 0;
+                transition: opacity 0.3s ease-in-out;
+            }
+            .gallery-item .image-wrapper:hover .overlay {
+                opacity: 1;
+            }
+            .view-on-flickr {
+                color: white;
+                padding: 8px 16px;
+                border: 2px solid white;
+                border-radius: 4px;
+                font-size: 14px;
+            }
+        </style>';
+        $styles_added = true;
+    }
+
+    return $html;
 }
 
 // AJAX handler for loading photos
