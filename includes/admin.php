@@ -384,126 +384,194 @@ function frg_preserve_tokens_on_album_save($value, $old_value) {
 
 // Settings page HTML
 function frg_settings_page() {
-    global $wpdb;
-    $table_name = $wpdb->prefix . 'frg_cache';
-
-    // Check if we need to start OAuth
-    if (isset($_POST['start_oauth']) && check_admin_referer('frg_start_oauth')) {
-        $auth_url = frg_start_oauth();
-        if ($auth_url) {
-            wp_redirect($auth_url);
-            exit;
-        }
-    }
+    // Get current tab
+    $current_tab = isset($_GET['tab']) ? sanitize_text_field($_GET['tab']) : 'settings';
     ?>
     <div class="wrap">
-        <h2>Flickr Random Gallery Settings</h2>
+        <h1>Flickr Random Gallery</h1>
 
         <?php settings_errors('frg_messages'); ?>
 
-        <?php if (isset($_GET['cache-cleared'])): ?>
-            <div class="notice notice-success is-dismissible">
-                <p>Cache cleared successfully!</p>
-            </div>
-        <?php endif; ?>
-
-        <!-- Two-column layout container -->
-        <div class="frg-settings-container" style="display: grid;grid-template-columns: 1fr 1fr;gap: 20px;margin-top: 20px;">
-            <!-- Column 1: API Settings Form -->
-            <div class="frg-api-settings">
-                <form method="post" action="options.php">
-                    <?php settings_fields('frg_settings_group'); ?>
-                    <table class="form-table">
-                        <tr>
-                            <th scope="row">Flickr API Key</th>
-                            <td>
-                                <input type="text"
-                                       name="frg_api_key"
-                                       value="<?php echo esc_attr(get_option('frg_api_key')); ?>"
-                                       class="regular-text"
-                                       placeholder="Enter your Flickr API Key"/>
-                                <p class="description">Your Flickr API Key (Required)</p>
-                            </td>
-                        </tr>
-                        <tr>
-                            <th scope="row">Flickr API Secret</th>
-                            <td>
-                                <input type="text"
-                                       name="frg_api_secret"
-                                       value="<?php echo esc_attr(get_option('frg_api_secret')); ?>"
-                                       class="regular-text"
-                                       placeholder="Enter your Flickr API Secret"/>
-                                <p class="description">Your Flickr API Secret (Required)</p>
-                            </td>
-                        </tr>
-                    </table>
-
-                    <?php submit_button('Save Settings'); ?>
-                </form>
-
-                <?php if (get_option('frg_api_key') && get_option('frg_api_secret')): ?>
-                    <?php if (!get_option('frg_oauth_token')): ?>
-                        <!-- OAuth Connection Form -->
-                        <div class="card" style="margin-top: 20px; padding: 10px 20px;">
-                            <h3>Connect to Flickr</h3>
-                            <p>Click the button below to connect your Flickr account and grant access to your photos:</p>
-                            <form method="post" action="<?php echo admin_url('admin-post.php'); ?>">
-                                <?php wp_nonce_field('frg_start_oauth'); ?>
-                                <input type="hidden" name="action" value="frg_start_oauth_process">
-                                <button type="submit" name="start_oauth" class="button button-primary">Connect to Flickr</button>
-                            </form>
-                        </div>
-                    <?php endif; ?>
-                <?php endif; ?>
-            </div>
-
-            <!-- Column 2: Getting Started Guide -->
-            <div class="card" style="height: fit-content; padding: 20px;">
-                <h3>
-                    <span class="dashicons dashicons-admin-network" style="font-size: 24px; margin-right: 10px;"></span>
-                    Getting Started with Flickr API
-                </h3>
-                <p>To use this plugin, you need Flickr API credentials. Here's how to get them:</p>
-                <ol>
-                    <li>Click the button below to go to Flickr's App Garden</li>
-                    <li>Sign in to your Flickr account (or create one if needed)</li>
-                    <li>Click "Create an App" and choose "Apply for a Non-Commercial Key"</li>
-                    <li>Fill in the application form with your website details</li>
-                    <li>Copy the API Key and API Secret provided by Flickr</li>
-                    <li>Paste them in the fields on the left and click "Save Settings"</li>
-                    <li>After saving, click the "Connect to Flickr" button to authorize the plugin</li>
-                </ol>
-                <a href="https://www.flickr.com/services/apps/create/"
-                   target="_blank"
-                   class="button button-primary"
-                   style="margin: 10px 0;">
-                    <span class="dashicons dashicons-external" style="line-height: 1.4;"></span>
-                    Get Flickr API Keys
+        <!-- Tabs Navigation -->
+        <nav class="nav-tab-wrapper">
+            <a href="?page=flickr-random-gallery&tab=settings"
+               class="nav-tab <?php echo $current_tab === 'settings' ? 'nav-tab-active' : ''; ?>">
+                <span class="dashicons dashicons-admin-settings" style="margin: 4px 8px 0 0;"></span>
+                Settings
+            </a>
+            <?php if (get_option('frg_oauth_token')): ?>
+                <a href="?page=flickr-random-gallery&tab=albums"
+                   class="nav-tab <?php echo $current_tab === 'albums' ? 'nav-tab-active' : ''; ?>">
+                    <span class="dashicons dashicons-format-gallery" style="margin: 4px 8px 0 0;"></span>
+                    Albums
                 </a>
-            </div>
+            <?php endif; ?>
+            <a href="?page=flickr-random-gallery&tab=cache"
+               class="nav-tab <?php echo $current_tab === 'cache' ? 'nav-tab-active' : ''; ?>">
+                <span class="dashicons dashicons-database" style="margin: 4px 8px 0 0;"></span>
+                Cache
+            </a>
+            <a href="?page=flickr-random-gallery&tab=docs"
+               class="nav-tab <?php echo $current_tab === 'docs' ? 'nav-tab-active' : ''; ?>">
+                <span class="dashicons dashicons-book" style="margin: 4px 8px 0 0;"></span>
+                Documentation
+            </a>
+        </nav>
+
+        <div class="tab-content" style="margin-top: 20px;">
+            <?php
+            switch ($current_tab) {
+                case 'settings':
+                    frg_render_settings_tab();
+                    break;
+                case 'albums':
+                    if (get_option('frg_oauth_token')) {
+                        frg_render_albums_tab();
+                    }
+                    break;
+                case 'cache':
+                    frg_render_cache_tab();
+                    break;
+                case 'docs':
+                    frg_render_docs_tab();
+                    break;
+            }
+            ?>
+        </div>
+    </div>
+
+    <style>
+        .tab-content {
+            background: #fff;
+            padding: 20px;
+            border: 1px solid #c3c4c7;
+            border-top: none;
+            box-shadow: 0 1px 1px rgba(0,0,0,.04);
+        }
+        .nav-tab-wrapper {
+            margin-bottom: 0;
+        }
+        .nav-tab {
+            display: inline-flex;
+            align-items: center;
+        }
+    </style>
+    <?php
+}
+
+function frg_render_settings_tab() {
+    ?>
+    <div class="frg-settings-container" style="
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+    ">
+        <!-- API Settings Form -->
+        <div class="frg-api-settings">
+            <form method="post" action="options.php">
+                <?php settings_fields('frg_settings_group'); ?>
+                <table class="form-table">
+                    <tr>
+                        <th scope="row">Flickr API Key</th>
+                        <td>
+                            <input type="text"
+                                   name="frg_api_key"
+                                   value="<?php echo esc_attr(get_option('frg_api_key')); ?>"
+                                   class="regular-text"
+                                   placeholder="Enter your Flickr API Key"/>
+                            <p class="description">Your Flickr API Key (Required)</p>
+                        </td>
+                    </tr>
+                    <tr>
+                        <th scope="row">Flickr API Secret</th>
+                        <td>
+                            <input type="text"
+                                   name="frg_api_secret"
+                                   value="<?php echo esc_attr(get_option('frg_api_secret')); ?>"
+                                   class="regular-text"
+                                   placeholder="Enter your Flickr API Secret"/>
+                            <p class="description">Your Flickr API Secret (Required)</p>
+                        </td>
+                    </tr>
+                </table>
+
+                <?php submit_button('Save Settings'); ?>
+            </form>
+
+            <?php if (get_option('frg_api_key') && get_option('frg_api_secret')): ?>
+                <?php if (!get_option('frg_oauth_token')): ?>
+                    <div class="card" style="margin-top: 20px; padding: 10px 20px;">
+                        <h3>Connect to Flickr</h3>
+                        <p>Click the button below to connect your Flickr account and grant access to your photos:</p>
+                        <form method="post" action="<?php echo admin_url('admin-post.php'); ?>">
+                            <?php wp_nonce_field('frg_start_oauth'); ?>
+                            <input type="hidden" name="action" value="frg_start_oauth_process">
+                            <button type="submit" name="start_oauth" class="button button-primary">Connect to Flickr</button>
+                        </form>
+                    </div>
+                <?php endif; ?>
+            <?php endif; ?>
         </div>
 
-        <?php if (get_option('frg_oauth_token')): ?>
-            <!-- Album Selection -->
-            <div style="margin-top: 30px;">
-                <h3>Select Albums</h3>
-                <div id="flickr-albums-list">
-                    <?php frg_display_albums_list(); ?>
-                </div>
-            </div>
-        <?php endif; ?>
-
-        <div class="frg-settings-container">
-            <!-- Cache Management Section -->
-            <div class="frg-cache-management">
-                <?php frg_add_cache_management_section(); ?>
-            </div>
-            <!-- Shortcode Documentation -->
-            <div class="frg-shortcode-docs">
-                <?php frg_add_shortcode_docs() ?>
-            </div>
+        <!-- Getting Started Guide -->
+        <div class="card" style="height: fit-content; padding: 20px;">
+            <h3>
+                <span class="dashicons dashicons-admin-network" style="font-size: 24px; margin-right: 10px;"></span>
+                Getting Started with Flickr API
+            </h3>
+            <p>To use this plugin, you need Flickr API credentials. Here's how to get them:</p>
+            <ol>
+                <li>Click the button below to go to Flickr's App Garden</li>
+                <li>Sign in to your Flickr account (or create one if needed)</li>
+                <li>Click "Create an App" and choose "Apply for a Non-Commercial Key"</li>
+                <li>Fill in the application form with your website details</li>
+                <li>Copy the API Key and API Secret provided by Flickr</li>
+                <li>Paste them in the fields on the left and click "Save Settings"</li>
+                <li>After saving, click the "Connect to Flickr" button to authorize the plugin</li>
+            </ol>
+            <a href="https://www.flickr.com/services/apps/create/"
+               target="_blank"
+               class="button button-primary"
+               style="margin: 10px 0;">
+                <span class="dashicons dashicons-external" style="line-height: 1.4;"></span>
+                Get Flickr API Keys
+            </a>
         </div>
+    </div>
 
+    <!-- Developer Credit Footer -->
+    <div class="frg-developer-credit">
+        <p>
+            Developed by <a href="https://github.com/stephanj" target="_blank">Stephan Janssen</a>
+            using <a href="https://github.com/devoxx/DevoxxGenieIDEAPlugin" target="_blank" style="color: #2271b1;">@DevoxxGenie</a>
+            | <a href="https://github.com/stephanj/flickr-random-gallery" target="_blank" style="color: #2271b1;">
+                View on GitHub
+            </a>
+        </p>
+    </div>
+    <?php
+}
+
+function frg_render_albums_tab() {
+    ?>
+    <div id="flickr-albums-list">
+        <?php frg_display_albums_list(); ?>
+    </div>
+    <?php
+}
+
+function frg_render_cache_tab() {
+    ?>
+    <div class="frg-cache-management">
+        <?php frg_add_cache_management_section(); ?>
+    </div>
+    <?php
+}
+
+function frg_render_docs_tab() {
+    ?>
+    <div class="frg-shortcode-docs">
+        <?php frg_add_shortcode_docs(); ?>
     </div>
     <?php
 }
@@ -529,7 +597,7 @@ function frg_add_cache_management_section() {
     ");
 
     ?>
-    <div class="frg-cache-management card" style="margin-top: 30px; padding: 20px;">
+    <div class="frg-cache-management" style="margin-top: 30px; padding: 20px;">
         <h2 style="margin-top: 0;">
             <span class="dashicons dashicons-database" style="font-size: 24px; margin-right: 10px;"></span>
             Cache Management
@@ -709,7 +777,7 @@ add_action('admin_notices', function() {
 
 function frg_add_shortcode_docs() {
     ?>
-    <div class="frg-shortcode-docs card" style="margin-top: 30px; padding: 20px;">
+    <div class="frg-shortcode-docs" style="margin-top: 30px; padding: 20px;">
         <h2 style="margin-top: 0;">
             <span class="dashicons dashicons-shortcode" style="font-size: 24px; margin-right: 10px;"></span>
             Using the Gallery Shortcode

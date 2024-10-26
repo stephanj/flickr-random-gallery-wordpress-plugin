@@ -310,3 +310,15 @@
   border-left: none;
   border-right: 4px solid #2271b1;
 }
+
+/* ==========================================================================
+   Developer Credit
+   ========================================================================== */
+.frg-developer-credit {
+  margin-top: 40px;
+  padding-top: 20px;
+  border-top: 1px solid #ddd;
+  color: #666;
+  font-size: 13px;
+  text-align: center;
+}
