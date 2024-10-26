@@ -190,6 +190,26 @@
   border-right: 4px solid #2271b1;
 }
 
+.frg-masked-input-wrapper {
+  display: flex;
+  align-items: center;
+  max-width: 500px;
+}
+
+.frg-masked-input-wrapper input {
+  padding-right: 70px;
+}
+
+.frg-masked-input-wrapper .toggle-visibility {
+  min-height: 30px;
+  margin: 1px;
+}
+
+.masked-display {
+  background-color: #f0f0f1;
+  cursor: not-allowed;
+}
+
 /* ==========================================================================
    Developer Credit
    ========================================================================== */
@@ -201,3 +221,5 @@
   font-size: 13px;
   text-align: center;
 }
+
+

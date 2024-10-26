@@ -474,26 +474,112 @@ function frg_render_settings_tab() {
                     <tr>
                         <th scope="row">Flickr API Key</th>
                         <td>
-                            <input type="text"
-                                   name="frg_api_key"
-                                   value="<?php echo esc_attr(get_option('frg_api_key')); ?>"
-                                   class="regular-text"
-                                   placeholder="Enter your Flickr API Key"/>
+                            <?php
+                            $api_key = get_option('frg_api_key');
+                            $masked_key = '';
+                            if (!empty($api_key)) {
+                                $visible_chars = 4; // Show first 4 characters
+                                $masked_key = substr($api_key, 0, $visible_chars) . str_repeat('•', strlen($api_key) - $visible_chars);
+                            }
+                            ?>
+                            <div class="frg-masked-input-wrapper" style="position: relative;">
+                                <input type="text"
+                                       name="frg_api_key"
+                                       value="<?php echo esc_attr($api_key); ?>"
+                                       class="regular-text masked-input"
+                                       placeholder="Enter your Flickr API Key"
+                                       style="display: none;"/>
+                                <input type="text"
+                                       readonly
+                                       value="<?php echo esc_attr($masked_key); ?>"
+                                       class="regular-text masked-display"
+                                       placeholder="Enter your Flickr API Key"/>
+                                <button type="button"
+                                        class="button button-secondary toggle-visibility"
+                                        style="position: absolute; right: 0; top: 0;"
+                                        onclick="toggleApiKeyVisibility(this)">
+                                    Show
+                                </button>
+                            </div>
                             <p class="description">Your Flickr API Key (Required)</p>
                         </td>
                     </tr>
                     <tr>
                         <th scope="row">Flickr API Secret</th>
                         <td>
-                            <input type="text"
-                                   name="frg_api_secret"
-                                   value="<?php echo esc_attr(get_option('frg_api_secret')); ?>"
-                                   class="regular-text"
-                                   placeholder="Enter your Flickr API Secret"/>
+                            <?php
+                            $api_secret = get_option('frg_api_secret');
+                            $masked_secret = '';
+                            if (!empty($api_secret)) {
+                                $visible_chars = 4; // Show first 4 characters
+                                $masked_secret = substr($api_secret, 0, $visible_chars) . str_repeat('•', strlen($api_secret) - $visible_chars);
+                            }
+                            ?>
+                            <div class="frg-masked-input-wrapper" style="position: relative;">
+                                <input type="text"
+                                       name="frg_api_secret"
+                                       value="<?php echo esc_attr($api_secret); ?>"
+                                       class="regular-text masked-input"
+                                       placeholder="Enter your Flickr API Secret"
+                                       style="display: none;"/>
+                                <input type="text"
+                                       readonly
+                                       value="<?php echo esc_attr($masked_secret); ?>"
+                                       class="regular-text masked-display"
+                                       placeholder="Enter your Flickr API Secret"/>
+                                <button type="button"
+                                        class="button button-secondary toggle-visibility"
+                                        style="position: absolute; right: 0; top: 0;"
+                                        onclick="toggleApiSecretVisibility(this)">
+                                    Show
+                                </button>
+                            </div>
                             <p class="description">Your Flickr API Secret (Required)</p>
                         </td>
                     </tr>
                 </table>
+
+                <script>
+                    function toggleApiKeyVisibility(button) {
+                        const wrapper = button.closest('.frg-masked-input-wrapper');
+                        const maskedInput = wrapper.querySelector('.masked-input');
+                        const maskedDisplay = wrapper.querySelector('.masked-display');
+
+                        if (maskedInput.style.display === 'none') {
+                            maskedInput.style.display = 'block';
+                            maskedDisplay.style.display = 'none';
+                            button.textContent = 'Hide';
+                        } else {
+                            maskedInput.style.display = 'none';
+                            maskedDisplay.style.display = 'block';
+                            button.textContent = 'Show';
+                        }
+                    }
+
+                    function toggleApiSecretVisibility(button) {
+                        const wrapper = button.closest('.frg-masked-input-wrapper');
+                        const maskedInput = wrapper.querySelector('.masked-input');
+                        const maskedDisplay = wrapper.querySelector('.masked-display');
+
+                        if (maskedInput.style.display === 'none') {
+                            maskedInput.style.display = 'block';
+                            maskedDisplay.style.display = 'none';
+                            button.textContent = 'Hide';
+                        } else {
+                            maskedInput.style.display = 'none';
+                            maskedDisplay.style.display = 'block';
+                            button.textContent = 'Show';
+                        }
+                    }
+
+                    // Handle form submission to ensure the actual input is visible
+                    document.querySelector('form').addEventListener('submit', function() {
+                        const maskedInputs = document.querySelectorAll('.masked-input');
+                        maskedInputs.forEach(input => {
+                            input.style.display = 'block';
+                        });
+                    });
+                </script>
 
                 <?php submit_button('Save Settings'); ?>
             </form>

@@ -53,7 +53,7 @@ function frg_enqueue_scripts() {
 // Admin styles - only load on plugin admin pages
 function frg_enqueue_admin_scripts($hook) {
     if (strpos($hook, 'flickr-random-gallery') !== false) {
-        wp_enqueue_style('frg-admin', FRG_PLUGIN_URL . 'css/admin_v3.css', array(), FRG_VERSION);
+        wp_enqueue_style('frg-admin', FRG_PLUGIN_URL . 'css/admin_v4.css', array(), FRG_VERSION);
     }
 }
 add_action('admin_enqueue_scripts', 'frg_enqueue_admin_scripts');
