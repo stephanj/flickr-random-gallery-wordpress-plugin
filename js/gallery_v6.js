@@ -35,23 +35,46 @@
       if (response?.success && Array.isArray(response.data)) {
         let html = '';
         response.data.forEach(function(photo) {
-          const photoPageUrl = `https://www.flickr.com/photos/${photo.server}/${photo.id}`;
+          log('Processing photo:', photo);
+
+          // Use owner from photoset info if photo owner is undefined
+          const owner = photo.owner || photo.photoset?.owner || '';
+          const photoPageUrl = `https://www.flickr.com/photos/${owner}/${photo.id}/in/album-${photo.album_id}`;
           const imgUrl = photo.url_l || `https://farm${photo.farm}.staticflickr.com/${photo.server}/${photo.id}_${photo.secret}_z.jpg`;
+
+          log('Generated URL:', photoPageUrl);
 
           html += `
             <div class="gallery-item">
-              <a href="${photoPageUrl}" target="${target}" title="${photo.title}">
-                <img src="${imgUrl}"
-                     alt="${photo.title}"
-                     loading="lazy">
-                <div class="overlay">
-                  <span class="view-on-flickr">View on Flickr</span>
-                </div>
-              </a>
+              <div class="image-wrapper">
+                <a href="${photoPageUrl}" target="${target}" title="${photo.title}">
+                  <img src="${imgUrl}"
+                       alt="${photo.title}"
+                       loading="lazy">
+                  <div class="overlay">
+                    <span class="view-on-flickr">View on Flickr</span>
+                  </div>
+                </a>
+              </div>
             </div>
           `;
         });
+
+        // Add inline styles for the gallery grid
+        const columns = $gallery.data('columns') || 3;
+        $gallery.css({
+          'display': 'grid',
+          'grid-template-columns': `repeat(${columns}, 1fr)`,
+          'gap': '20px',
+          'grid-auto-rows': '1fr'
+        });
+
         $gallery.html(html);
+
+        // After images are loaded, trigger layout adjustments
+        $gallery.find('img').on('load', function() {
+          $(this).closest('.image-wrapper').addClass('loaded');
+        });
       } else {
         throw new Error(response?.data?.message || 'Invalid response format');
       }
@@ -73,7 +96,7 @@
   $(window).on('resize', function() {
     document.querySelectorAll('.flickr-random-gallery').forEach(function(element) {
       const $gallery = $(element);
-      // Add any resize-specific logic here
+      // Adjust layout if needed on resize
     });
   });
 

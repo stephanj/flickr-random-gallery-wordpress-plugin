@@ -42,11 +42,18 @@ function frg_deactivate_plugin() {
 // Enqueue scripts and styles
 add_action('wp_enqueue_scripts', 'frg_enqueue_scripts');
 function frg_enqueue_scripts() {
-    wp_enqueue_style('frg-gallery', FRG_PLUGIN_URL . 'css/gallery_v1.css', array(), FRG_VERSION);
-    wp_enqueue_script('frg-gallery', FRG_PLUGIN_URL . 'js/gallery_v4.js', array('jquery'), FRG_VERSION, true);
+    wp_enqueue_style('frg-gallery', FRG_PLUGIN_URL . 'css/gallery_v3.css', array(), FRG_VERSION);
+    wp_enqueue_script('frg-gallery', FRG_PLUGIN_URL . 'js/gallery_v6.js', array('jquery'), FRG_VERSION, true);
     wp_localize_script('frg-gallery', 'frgAjax', array(
         'ajaxurl' => admin_url('admin-ajax.php'),
         'nonce' => wp_create_nonce('frg-gallery-nonce')
     ));
 }
-?>
+
+// Admin styles - only load on plugin admin pages
+function frg_enqueue_admin_scripts($hook) {
+    if (strpos($hook, 'flickr-random-gallery') !== false) {
+        wp_enqueue_style('frg-admin', FRG_PLUGIN_URL . 'css/admin_v3.css', array(), FRG_VERSION);
+    }
+}
+add_action('admin_enqueue_scripts', 'frg_enqueue_admin_scripts');

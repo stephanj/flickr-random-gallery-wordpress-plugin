@@ -40,6 +40,12 @@ This will display a 4-column, medium-sized gallery with random photos from selec
 
 ![Gallery](https://github.com/user-attachments/assets/69851281-f31e-4fe7-9863-9f372674218e)
 
+**Zip Installation**
+---------------------
+
+```bash
+zip -r flickr-random-gallery.zip flickr-random-gallery --exclude "*/.git/*" "*/.idea/*" "*/.DS_Store"
+```
 
 **License**
 ----------
