@@ -112,10 +112,16 @@ function frg_handle_oauth_callback() {
 
 // Improved OAuth initialization
 function frg_start_oauth() {
+    error_log('FRG: Inside frg_start_oauth()');
+
     $api_key = get_option('frg_api_key');
     $api_secret = get_option('frg_api_secret');
 
+    error_log('FRG: API Key exists: ' . ($api_key ? 'yes' : 'no'));
+    error_log('FRG: API Secret exists: ' . ($api_secret ? 'yes' : 'no'));
+
     if (!$api_key || !$api_secret) {
+        error_log('FRG: Missing API credentials');
         add_settings_error(
             'frg_messages',
             'frg_oauth_error',
@@ -124,12 +130,6 @@ function frg_start_oauth() {
         );
         return false;
     }
-
-    // Clear any existing OAuth tokens
-    delete_option('frg_request_token');
-    delete_option('frg_request_token_secret');
-    delete_option('frg_oauth_token');
-    delete_option('frg_oauth_token_secret');
 
     $callback_url = admin_url('options-general.php?page=flickr-random-gallery');
     $url = "https://www.flickr.com/services/oauth/request_token";
@@ -149,79 +149,67 @@ function frg_start_oauth() {
     $signature = base64_encode(hash_hmac('sha1', $base_string, $key, true));
     $params['oauth_signature'] = $signature;
 
-    // Set up the request args with increased timeout
-    $args = array(
-        'timeout' => 30, // Increase timeout to 30 seconds
-        'httpversion' => '1.1',
+    error_log('FRG: Making request to Flickr');
+    error_log('FRG: Request URL: ' . $url . '?' . http_build_query($params));
+
+    $response = wp_remote_get($url . '?' . http_build_query($params), array(
+        'timeout' => 30,
         'sslverify' => true,
         'headers' => array(
             'Accept' => 'application/json',
             'User-Agent' => 'WordPress/' . get_bloginfo('version') . '; ' . get_bloginfo('url')
         )
-    );
-
-    // Make the request with extended error handling
-    $response = wp_remote_get($url . '?' . http_build_query($params), $args);
+    ));
 
     if (is_wp_error($response)) {
-        $error_message = $response->get_error_message();
-        $error_code = $response->get_error_code();
-
-        // Log the error for debugging
-        error_log(sprintf('Flickr OAuth Error: [%s] %s', $error_code, $error_message));
-
-        // Provide more specific error message based on the error
-        $user_message = 'OAuth error: ';
-        if (strpos($error_message, 'Operation timed out') !== false) {
-            $user_message .= 'Connection to Flickr timed out. Please try again or check your internet connection.';
-        } elseif (strpos($error_message, 'Could not resolve host') !== false) {
-            $user_message .= 'Could not connect to Flickr. Please check your internet connection.';
-        } else {
-            $user_message .= $error_message;
-        }
-
+        error_log('FRG: Request error: ' . $response->get_error_message());
         add_settings_error(
             'frg_messages',
             'frg_oauth_error',
-            $user_message,
-            'error'
-        );
-        return false;
-    }
-
-    $response_code = wp_remote_retrieve_response_code($response);
-    if ($response_code !== 200) {
-        $error_message = sprintf(
-            'Flickr returned an unexpected response (HTTP %s). Please try again later.',
-            $response_code
-        );
-        add_settings_error(
-            'frg_messages',
-            'frg_oauth_error',
-            $error_message,
+            'Connection error: ' . $response->get_error_message(),
             'error'
         );
         return false;
     }
 
     $body = wp_remote_retrieve_body($response);
+    error_log('FRG: Response body: ' . $body);
+
     parse_str($body, $request_token);
 
     if (isset($request_token['oauth_token']) && isset($request_token['oauth_token_secret'])) {
+        error_log('FRG: Got request token: ' . $request_token['oauth_token']);
+
         update_option('frg_request_token', $request_token['oauth_token']);
         update_option('frg_request_token_secret', $request_token['oauth_token_secret']);
 
-        return "https://www.flickr.com/services/oauth/authorize?oauth_token={$request_token['oauth_token']}&perms=read";
+        $auth_url = "https://www.flickr.com/services/oauth/authorize?oauth_token={$request_token['oauth_token']}&perms=read";
+        error_log('FRG: Generated auth URL: ' . $auth_url);
+
+        return $auth_url;
     }
 
-    // If we get here, something went wrong with the response format
+    error_log('FRG: Failed to get request token. Response: ' . print_r($request_token, true));
     add_settings_error(
         'frg_messages',
         'frg_oauth_error',
-        'Invalid response received from Flickr. Please try again.',
+        'Failed to get request token from Flickr',
         'error'
     );
     return false;
+}
+
+add_action('admin_notices', 'frg_admin_notices');
+function frg_admin_notices() {
+    if (isset($_GET['page']) && $_GET['page'] === 'flickr-random-gallery') {
+        if (isset($_GET['error']) && $_GET['error'] === 'oauth_failed') {
+            ?>
+            <div class="notice notice-error is-dismissible">
+                <p>Failed to connect to Flickr. Please check your API credentials and try again.</p>
+            </div>
+            <?php
+        }
+    }
 }
 
 // Also update the access token function with similar improvements
@@ -420,7 +408,7 @@ function frg_settings_page() {
         <?php endif; ?>
 
         <!-- Two-column layout container -->
-        <div class="frg-settings-container" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; max-width: 1200px; margin-top: 20px;">
+        <div class="frg-settings-container" style="display: grid;grid-template-columns: 1fr 1fr;gap: 20px;margin-top: 20px;">
             <!-- Column 1: API Settings Form -->
             <div class="frg-api-settings">
                 <form method="post" action="options.php">
@@ -459,9 +447,10 @@ function frg_settings_page() {
                         <div class="card" style="margin-top: 20px; padding: 10px 20px;">
                             <h3>Connect to Flickr</h3>
                             <p>Click the button below to connect your Flickr account and grant access to your photos:</p>
-                            <form method="post">
+                            <form method="post" action="<?php echo admin_url('admin-post.php'); ?>">
                                 <?php wp_nonce_field('frg_start_oauth'); ?>
-                                <input type="submit" name="start_oauth" class="button button-primary" value="Connect to Flickr">
+                                <input type="hidden" name="action" value="frg_start_oauth_process">
+                                <button type="submit" name="start_oauth" class="button button-primary">Connect to Flickr</button>
                             </form>
                         </div>
                     <?php endif; ?>
@@ -469,7 +458,7 @@ function frg_settings_page() {
             </div>
 
             <!-- Column 2: Getting Started Guide -->
-            <div class="card" style="height: fit-content; padding: 10px 20px;">
+            <div class="card" style="height: fit-content; padding: 20px;">
                 <h3>
                     <span class="dashicons dashicons-admin-network" style="font-size: 24px; margin-right: 10px;"></span>
                     Getting Started with Flickr API
@@ -504,12 +493,349 @@ function frg_settings_page() {
             </div>
         <?php endif; ?>
 
-        <!-- Cache Management Section -->
-        <div class="frg-cache-management">
-            <!-- ... (rest of the cache management section remains the same) ... -->
+        <div class="frg-settings-container">
+            <!-- Cache Management Section -->
+            <div class="frg-cache-management">
+                <?php frg_add_cache_management_section(); ?>
+            </div>
+            <!-- Shortcode Documentation -->
+            <div class="frg-shortcode-docs">
+                <?php frg_add_shortcode_docs() ?>
+            </div>
+        </div>
+
+    </div>
+    <?php
+}
+
+function frg_add_cache_management_section() {
+    global $wpdb;
+    $table_name = $wpdb->prefix . 'frg_cache';
+
+    // Get cache statistics
+    $cache_stats = array(
+        'total_entries' => $wpdb->get_var("SELECT COUNT(*) FROM $table_name"),
+        'oldest_entry' => $wpdb->get_var("SELECT MIN(last_updated) FROM $table_name"),
+        'newest_entry' => $wpdb->get_var("SELECT MAX(last_updated) FROM $table_name"),
+        'total_albums' => count(get_option('frg_selected_albums', array()))
+    );
+
+    // Get cached albums with their last update time
+    $cached_albums = $wpdb->get_results("
+        SELECT album_id, last_updated,
+        LENGTH(photo_data) as data_size
+        FROM $table_name
+        ORDER BY last_updated DESC
+    ");
+
+    ?>
+    <div class="frg-cache-management card" style="margin-top: 30px; padding: 20px;">
+        <h2 style="margin-top: 0;">
+            <span class="dashicons dashicons-database" style="font-size: 24px; margin-right: 10px;"></span>
+            Cache Management
+        </h2>
+
+        <!-- Cache Statistics -->
+        <div class="frg-cache-stats" style="
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        ">
+            <div class="stat-card" style="background: #f0f6fc; padding: 15px; border-radius: 4px;">
+                <h4 style="margin: 0;">Cached Albums</h4>
+                <p style="font-size: 24px; margin: 10px 0;">
+                    <?php echo esc_html($cache_stats['total_entries']); ?> / <?php echo esc_html($cache_stats['total_albums']); ?>
+                </p>
+            </div>
+
+            <div class="stat-card" style="background: #f0f6fc; padding: 15px; border-radius: 4px;">
+                <h4 style="margin: 0;">Last Cache Update</h4>
+                <p style="font-size: 16px; margin: 10px 0;">
+                    <?php
+                    if ($cache_stats['newest_entry']) {
+                        echo esc_html(human_time_diff(strtotime($cache_stats['newest_entry']), current_time('timestamp'))) . ' ago';
+                    } else {
+                        echo 'Never';
+                    }
+                    ?>
+                </p>
+            </div>
+
+            <div class="stat-card" style="background: #f0f6fc; padding: 15px; border-radius: 4px;">
+                <h4 style="margin: 0;">Cache Status</h4>
+                <p style="font-size: 16px; margin: 10px 0;">
+                    <?php
+                    if ($cache_stats['total_entries'] === $cache_stats['total_albums']) {
+                        echo '<span style="color: #00a32a;">✓ All albums cached</span>';
+                    } else {
+                        echo '<span style="color: #cc1818;">⚠ Cache incomplete</span>';
+                    }
+                    ?>
+                </p>
+            </div>
+        </div>
+
+        <!-- Cache Actions -->
+        <div class="frg-cache-actions" style="margin: 20px 0; display: flex; gap: 10px;">
+            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display: inline;">
+                <?php wp_nonce_field('frg_clear_cache'); ?>
+                <input type="hidden" name="action" value="frg_clear_cache">
+                <button type="submit" class="button button-secondary">
+                    <span class="dashicons dashicons-trash" style="margin: 4px 5px 0 -5px;"></span>
+                    Clear Cache
+                </button>
+            </form>
+
+            <form method="post" action="<?php echo esc_url(admin_url('admin-post.php')); ?>" style="display: inline;">
+                <?php wp_nonce_field('frg_refresh_cache'); ?>
+                <input type="hidden" name="action" value="frg_refresh_cache">
+                <button type="submit" class="button button-primary">
+                    <span class="dashicons dashicons-update" style="margin: 4px 5px 0 -5px;"></span>
+                    Refresh Cache Now
+                </button>
+            </form>
+        </div>
+
+        <!-- Cache Details Table -->
+        <?php if (!empty($cached_albums)): ?>
+            <h3>Cached Albums</h3>
+            <table class="widefat" style="margin-top: 15px;">
+                <thead>
+                <tr>
+                    <th>Album ID</th>
+                    <th>Last Updated</th>
+                    <th>Cache Size</th>
+                    <th>Status</th>
+                </tr>
+                </thead>
+                <tbody>
+                <?php foreach ($cached_albums as $album): ?>
+                    <tr>
+                        <td><?php echo esc_html($album->album_id); ?></td>
+                        <td>
+                            <?php
+                            $time_diff = human_time_diff(strtotime($album->last_updated), current_time('timestamp'));
+                            echo esc_html($time_diff) . ' ago';
+                            ?>
+                        </td>
+                        <td><?php echo esc_html(size_format(strlen($album->data_size), 2)); ?></td>
+                        <td>
+                            <?php
+                            $age_hours = (current_time('timestamp') - strtotime($album->last_updated)) / HOUR_IN_SECONDS;
+                            if ($age_hours < 24) {
+                                echo '<span style="color: #00a32a;">✓ Fresh</span>';
+                            } elseif ($age_hours < 48) {
+                                echo '<span style="color: #dba617;">⚠ Aging</span>';
+                            } else {
+                                echo '<span style="color: #cc1818;">⚠ Stale</span>';
+                            }
+                            ?>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+                </tbody>
+            </table>
+        <?php endif; ?>
+
+        <!-- Cache Information -->
+        <div class="frg-cache-info card" style="margin-top: 20px; padding: 15px; background: #f0f6fc; border-left: 4px solid #2271b1;">
+            <h4 style="margin-top: 0;">ℹ️ About Caching</h4>
+            <p>The plugin caches Flickr album data to improve performance and reduce API calls. Cache is automatically refreshed:</p>
+            <ul style="list-style-type: disc; margin-left: 20px;">
+                <ul style="list-style-type: disc; margin-left: 20px;">
+                    <li>Every 24 hours via WordPress cron</li>
+                    <li>When you modify album selections</li>
+                    <li>When you manually refresh the cache</li>
+                </ul>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        jQuery(document).ready(function($) {
+            // Add loading spinner to refresh button when clicked
+            $('form[action*="frg_refresh_cache"]').on('submit', function() {
+                $(this).find('button').prop('disabled', true)
+                    .html('<span class="spinner is-active" style="float: none; margin: 0 5px 0 0;"></span> Refreshing...');
+            });
+
+            // Confirm cache clearing
+            $('form[action*="frg_clear_cache"]').on('submit', function(e) {
+                if (!confirm('Are you sure you want to clear the cache? This will delete all cached photos and require re-downloading them on next gallery load.')) {
+                    e.preventDefault();
+                }
+            });
+        });
+    </script>
+    <?php
+}
+
+// Add the cache refresh action handler
+add_action('admin_post_frg_refresh_cache', 'frg_handle_cache_refresh');
+function frg_handle_cache_refresh() {
+    if (!current_user_can('manage_options')) {
+        wp_die('Unauthorized');
+    }
+
+    check_admin_referer('frg_refresh_cache');
+
+    // Call the cache refresh function from cache.php
+    frg_refresh_cache();
+
+    // Redirect back to the settings page with a success message
+    wp_safe_redirect(add_query_arg(
+        array(
+            'page' => 'flickr-random-gallery',
+            'cache-refreshed' => '1'
+        ),
+        admin_url('options-general.php')
+    ));
+    exit;
+}
+
+// Add success message for cache refresh
+add_action('admin_notices', function() {
+    if (isset($_GET['page']) && $_GET['page'] === 'flickr-random-gallery') {
+        if (isset($_GET['cache-refreshed'])) {
+            ?>
+            <div class="notice notice-success is-dismissible">
+                <p>Cache refreshed successfully!</p>
+            </div>
+            <?php
+        }
+    }
+});
+
+function frg_add_shortcode_docs() {
+    ?>
+    <div class="frg-shortcode-docs card" style="margin-top: 30px; padding: 20px;">
+        <h2 style="margin-top: 0;">
+            <span class="dashicons dashicons-shortcode" style="font-size: 24px; margin-right: 10px;"></span>
+            Using the Gallery Shortcode
+        </h2>
+
+        <p class="description">Use the shortcode below to display your Flickr gallery anywhere on your site:</p>
+
+        <div class="frg-shortcode-example" style="
+            background: #f0f0f1;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 15px 0;
+            font-family: monospace;
+        ">
+            [flickr_random_gallery]
+        </div>
+
+        <h3>Shortcode Options</h3>
+        <table class="widefat" style="margin-top: 15px;">
+            <thead>
+            <tr>
+                <th>Parameter</th>
+                <th>Default</th>
+                <th>Description</th>
+                <th>Example</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr>
+                <td><code>columns</code></td>
+                <td>3</td>
+                <td>Number of columns in the gallery grid</td>
+                <td><code>[flickr_random_gallery columns="4"]</code></td>
+            </tr>
+            <tr>
+                <td><code>count</code></td>
+                <td>9</td>
+                <td>Number of photos to display</td>
+                <td><code>[flickr_random_gallery count="12"]</code></td>
+            </tr>
+            <tr>
+                <td><code>target</code></td>
+                <td>_blank</td>
+                <td>Link target for photos (_blank, _self)</td>
+                <td><code>[flickr_random_gallery target="_self"]</code></td>
+            </tr>
+            </tbody>
+        </table>
+
+        <h3 style="margin-top: 20px;">Example Usage</h3>
+        <div class="frg-example-cards" style="
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-top: 15px;
+        ">
+            <!-- Basic Example -->
+            <div class="card" style="padding: 15px;">
+                <h4>Basic Gallery</h4>
+                <code>[flickr_random_gallery]</code>
+                <p class="description">Displays 9 photos in a 3-column grid</p>
+            </div>
+
+            <!-- Custom Layout -->
+            <div class="card" style="padding: 15px;">
+                <h4>Custom Layout</h4>
+                <code>[flickr_random_gallery columns="4" count="12"]</code>
+                <p class="description">Shows 12 photos in a 4-column grid</p>
+            </div>
+
+            <!-- Custom Target -->
+            <div class="card" style="padding: 15px;">
+                <h4>Same Window Links</h4>
+                <code>[flickr_random_gallery target="_self"]</code>
+                <p class="description">Opens photos in the same window</p>
+            </div>
+        </div>
+
+        <div class="frg-tips card" style="margin-top: 20px; padding: 15px; background: #f0f6fc; border-left: 4px solid #2271b1;">
+            <h4 style="margin-top: 0;">💡 Tips</h4>
+            <ul style="list-style-type: disc; margin-left: 20px;">
+                <li>You can use the shortcode in posts, pages, and widgets</li>
+                <li>Multiple galleries can be added to the same page with different settings</li>
+                <li>Photos are randomly selected from your chosen albums each time the page loads</li>
+                <li>The gallery is responsive and will adjust to fit your theme's layout</li>
+            </ul>
         </div>
     </div>
     <?php
+}
+
+add_action('admin_post_frg_start_oauth_process', 'frg_handle_oauth_start');
+function frg_handle_oauth_start() {
+    if (!current_user_can('manage_options')) {
+        wp_die('Unauthorized');
+    }
+
+    check_admin_referer('frg_start_oauth');
+
+    // Log the start of OAuth process
+    error_log('FRG: Starting OAuth process');
+
+    // Clear any existing OAuth tokens
+    delete_option('frg_oauth_token');
+    delete_option('frg_oauth_token_secret');
+    delete_option('frg_request_token');
+    delete_option('frg_request_token_secret');
+
+    $auth_url = frg_start_oauth();
+
+    if ($auth_url) {
+        error_log('FRG: Redirecting to Flickr auth URL: ' . $auth_url);
+        wp_redirect($auth_url);
+        exit;
+    } else {
+        error_log('FRG: Failed to get auth URL');
+        wp_redirect(add_query_arg(
+            array(
+                'page' => 'flickr-random-gallery',
+                'error' => 'oauth_failed'
+            ),
+            admin_url('options-general.php')
+        ));
+        exit;
+    }
 }
 
 // Display available albums list
@@ -534,10 +860,10 @@ function frg_display_albums_list() {
     }
 
     $url = "https://api.flickr.com/services/rest/?method=flickr.photosets.getList" .
-        "&api_key={$api_key}" .
-        "&user_id={$user_id}" .
-        "&format=json" .
-        "&nojsoncallback=1";
+           "&api_key={$api_key}" .
+           "&user_id={$user_id}" .
+           "&format=json" .
+           "&nojsoncallback=1";
 
     $response = wp_remote_get($url);
 
@@ -581,10 +907,15 @@ function frg_display_albums_list() {
             <p class="description">Select the albums you want to include in your gallery:</p>
         </div>
 
+        <div class="frg-submit-wrapper" style="margin-top: 20px;">
+            <?php submit_button('Save Album Selection', 'primary', 'submit', false, ['style' => 'margin-right: 10px;']); ?>
+            <span class="description">Changes will take effect after saving.</span>
+        </div>
+
         <div class="frg-albums-grid" style="
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-            gap: 20px;
+            gap: 5px;
             margin-top: 20px;
         ">
             <?php
@@ -697,42 +1028,4 @@ function frg_run_diagnostics() {
 
     return $results;
 }
-
-// Add this button to your admin page
-add_action('admin_footer', function() {
-    if (isset($_GET['page']) && $_GET['page'] === 'flickr-random-gallery') {
-        ?>
-        <div class="card" style="margin-top: 20px;">
-            <h3>Diagnostic Tools</h3>
-            <button id="run-diagnostics" class="button">Run Diagnostics</button>
-            <div id="diagnostic-results" style="margin-top: 10px; padding: 10px; display: none;"></div>
-        </div>
-
-        <script>
-            jQuery(document).ready(function($) {
-                $('#run-diagnostics').on('click', function() {
-                    $.post(ajaxurl, {
-                        action: 'frg_run_diagnostics',
-                        nonce: '<?php echo wp_create_nonce('frg-diagnostics'); ?>'
-                    }, function(response) {
-                        if (response.success) {
-                            const results = response.data;
-                            let html = '<h4>Diagnostic Results:</h4>';
-                            html += '<pre>' + JSON.stringify(results, null, 2) + '</pre>';
-                            $('#diagnostic-results').html(html).show();
-                        }
-                    });
-                });
-            });
-        </script>
-        <?php
-    }
-});
-
-// Add the AJAX handler
-add_action('wp_ajax_frg_run_diagnostics', function() {
-    check_admin_referer('frg-diagnostics', 'nonce');
-    $results = frg_run_diagnostics();
-    wp_send_json_success($results);
-});
 ?>

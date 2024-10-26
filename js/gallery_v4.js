@@ -35,21 +35,21 @@
       if (response?.success && Array.isArray(response.data)) {
         let html = '';
         response.data.forEach(function(photo) {
-          const photoPageUrl = `https://www.flickr.com/photos/${photo.owner}/${photo.id}`;
+          const photoPageUrl = `https://www.flickr.com/photos/${photo.server}/${photo.id}`;
           const imgUrl = photo.url_l || `https://farm${photo.farm}.staticflickr.com/${photo.server}/${photo.id}_${photo.secret}_z.jpg`;
 
           html += `
-                        <div class="gallery-item">
-                            <a href="${photoPageUrl}" target="${target}" title="${photo.title}">
-                                <img src="${imgUrl}"
-                                     alt="${photo.title}"
-                                     loading="lazy">
-                                <div class="overlay">
-                                    <span class="view-on-flickr">View on Flickr</span>
-                                </div>
-                            </a>
-                        </div>
-                    `;
+            <div class="gallery-item">
+              <a href="${photoPageUrl}" target="${target}" title="${photo.title}">
+                <img src="${imgUrl}"
+                     alt="${photo.title}"
+                     loading="lazy">
+                <div class="overlay">
+                  <span class="view-on-flickr">View on Flickr</span>
+                </div>
+              </a>
+            </div>
+          `;
         });
         $gallery.html(html);
       } else {
@@ -61,11 +61,19 @@
     });
   }
 
-  // Initialize galleries on page load
-  $(document).ready(function() {
+  // Initialize galleries on page load using jQuery ready handler
+  $(function() {
     log('Initializing galleries');
-    $('.flickr-random-gallery').each(function() {
-      loadGallery($(this));
+    document.querySelectorAll('.flickr-random-gallery').forEach(function(element) {
+      loadGallery($(element));
+    });
+  });
+
+  // Add resize handler using modern event binding
+  $(window).on('resize', function() {
+    document.querySelectorAll('.flickr-random-gallery').forEach(function(element) {
+      const $gallery = $(element);
+      // Add any resize-specific logic here
     });
   });
 
