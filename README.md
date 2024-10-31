@@ -33,13 +33,19 @@ Here you can add your Flickr key and secret.  The "Get Flickr API Keys" button w
 
 ![image](https://github.com/user-attachments/assets/c67f6085-ab67-44da-bf09-62e6b1e77b7f)
 
+### Albums
+
 Once you're authenticated you can select the albums you want to show on your Wordpress page.
 
 ![image](https://github.com/user-attachments/assets/9f812320-16cc-4a42-8251-afaf74f28d6f)
 
+### Cache
+
 The plugin caches the Flickr albums locally.
 
 ![image](https://github.com/user-attachments/assets/69008103-9d81-4b4e-9c42-8865b1646cba)
+
+### Documentation
 
 The documentation tab explains how to use the plugin.
 
