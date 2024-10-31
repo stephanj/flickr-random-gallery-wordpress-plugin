@@ -27,7 +27,24 @@ This plugin allows you to easily add a random photo gallery to your WordPress si
 4. Select one or more Flickr albums from the list of available albums.
 5. Use the shortcode `[flickr_random_gallery]` in your page or post content to display the random photo gallery.
 
-![AdminScreen](https://github.com/user-attachments/assets/35c9f787-f222-4a5b-a0eb-965ebb43434c)
+### Settings
+
+Here you can add your Flickr key and secret.  The "Get Flickr API Keys" button will take you directly to the Flickr page.
+
+![image](https://github.com/user-attachments/assets/c67f6085-ab67-44da-bf09-62e6b1e77b7f)
+
+Once you're authenticated you can select the albums you want to show on your Wordpress page.
+
+![image](https://github.com/user-attachments/assets/9f812320-16cc-4a42-8251-afaf74f28d6f)
+
+The plugin caches the Flickr albums locally.
+
+![image](https://github.com/user-attachments/assets/69008103-9d81-4b4e-9c42-8865b1646cba)
+
+The documentation tab explains how to use the plugin.
+
+![image](https://github.com/user-attachments/assets/3991f231-e19b-47a0-8fdc-0992e398d2d0)
+
 
 **Example Usage**
 -----------------
