@@ -1,5 +1,3 @@
-Here is a sample README file for the Flickr Random Gallery WordPress plugin:
-
 **Flickr Random Gallery WordPress Plugin**
 =========================================
 
