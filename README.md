@@ -72,3 +72,32 @@ zip -r flickr-random-gallery.zip flickr-random-gallery --exclude "*/.git/*" "*/.
 ----------
 
 The Flickr Random Gallery WordPress plugin is released under the [MIT License](https://opensource.org/licenses/MIT).
+
+
+## Troubleshooting
+
+### Common Issues
+
+1. **API Key Error**: Ensure your Flickr API key and secret are entered correctly
+2. **No Albums Showing**: Make sure you've connected your Flickr account and selected albums
+3. **Gallery Not Loading**: Check browser console for errors and ensure your theme includes jQuery
+
+### Cache Issues
+
+If you experience any issues with the gallery cache:
+1. Go to **Settings > Flickr Gallery > Cache**
+2. Click "Repair & Refresh Cache" to fix any database issues
+3. Alternatively, use "Clear Cache" to start fresh
+
+## For Developers
+
+### Zip Installation & Distribution
+
+The plugin includes a convenient script for creating an optimized distribution zip file:
+
+```bash
+# Make the script executable first (one-time only)
+chmod +x create-plugin-zip.sh
+
+# Run the script to create the zip file
+./create-plugin-zip.sh
