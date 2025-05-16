@@ -14,7 +14,7 @@
     }
   }
 
-  function loadGallery($gallery) {
+function loadGallery($gallery) {
     log('Starting gallery load');
 
     // Find the refresh button for this gallery
@@ -31,9 +31,26 @@
     // Get count from data attribute, fallback to default of 9
     const count = parseInt($gallery.data('count')) || 9;
     const target = $gallery.data('target') || '_blank';
+    const columns = parseInt($gallery.data('columns')) || 3;
 
     log('Loading gallery with count:', count);
 
+    // Create placeholders first
+    let placeholderHtml = '';
+    for (let i = 0; i < count; i++) {
+      placeholderHtml += `
+        <div class="gallery-item">
+            <div class="image-wrapper">
+                <div class="placeholder-wrapper">
+                    <div class="placeholder-shimmer"></div>
+                </div>
+            </div>
+        </div>
+      `;
+    }
+    $gallery.html(placeholderHtml);
+
+    // Now make the AJAX request to load actual images
     return $.ajax({
       url: frgAjax.ajaxurl,
       type: 'GET',
@@ -47,8 +64,8 @@
       log('Response received:', response);
 
       if (response?.success && Array.isArray(response.data)) {
-        let html = '';
-        response.data.forEach(function(photo) {
+        // Don't replace all HTML, instead update each placeholder with actual content
+        response.data.forEach(function(photo, index) {
           log('Processing photo:', photo);
 
           const owner = photo.owner || photo.photoset?.owner || '';
@@ -56,25 +73,31 @@
           const imgUrl = photo.url_l || `https://farm${photo.farm}.staticflickr.com/${photo.server}/${photo.id}_${photo.secret}_z.jpg`;
 
           log('Generated URL:', photoPageUrl);
-
-          html += `
-                        <div class="gallery-item">
-                            <div class="image-wrapper">
-                                <a href="${photoPageUrl}" target="${target}" title="${photo.title}">
-                                    <img src="${imgUrl}"
-                                         alt="${photo.title}"
-                                         loading="lazy"
-                                         style="transition: transform 0.3s ease-in-out;">
-                                    <div class="overlay">
-                                        <span class="view-on-flickr">View on Flickr</span>
-                                    </div>
-                                </a>
-                            </div>
-                        </div>
-                    `;
+          
+          // Get the placeholder at the current index
+          const $galleryItem = $gallery.find('.gallery-item').eq(index);
+          if ($galleryItem.length) {
+            const $imageWrapper = $galleryItem.find('.image-wrapper');
+            
+            // Replace placeholder with actual image
+            $imageWrapper.html(`
+              <a href="${photoPageUrl}" target="${target}" title="${photo.title}">
+                <img src="${imgUrl}"
+                     alt="${photo.title}"
+                     loading="lazy"
+                     style="transition: transform 0.3s ease-in-out;">
+                <div class="overlay">
+                  <span class="view-on-flickr">View on Flickr</span>
+                </div>
+              </a>
+            `);
+            
+            // Set up image load event
+            $imageWrapper.find('img').on('load', function() {
+              $(this).addClass('loaded');
+            });
+          }
         });
-
-        $gallery.html(html);
 
         // After images are loaded, trigger layout adjustments
         $gallery.find('img').on('load', function() {
