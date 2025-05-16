@@ -2,7 +2,7 @@
 /*
 Plugin Name: Flickr Random Gallery
 Description: Display random photos from selected Flickr albums using a shortcode with async loading
-Version: 1.3
+Version: 1.4
 Author: Stephan Janssen
 */
 
@@ -43,7 +43,7 @@ function frg_deactivate_plugin() {
 add_action('wp_enqueue_scripts', 'frg_enqueue_scripts');
 function frg_enqueue_scripts() {
     wp_enqueue_style('frg-gallery', FRG_PLUGIN_URL . 'css/gallery_v3.css', array(), FRG_VERSION);
-    wp_enqueue_script('frg-gallery', FRG_PLUGIN_URL . 'js/gallery_v9.js', array('jquery'), FRG_VERSION, true);
+    wp_enqueue_script('frg-gallery', FRG_PLUGIN_URL . 'js/gallery_v10.js', array('jquery'), FRG_VERSION, true);
     wp_localize_script('frg-gallery', 'frgAjax', array(
         'ajaxurl' => admin_url('admin-ajax.php'),
         'nonce' => wp_create_nonce('frg-gallery-nonce')

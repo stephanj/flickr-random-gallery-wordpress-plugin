@@ -677,7 +677,8 @@ function frg_add_cache_management_section() {
     // Get cached albums with their last update time
     $cached_albums = $wpdb->get_results("
         SELECT album_id, last_updated,
-        LENGTH(photo_data) as data_size
+        LENGTH(photo_data) as data_size,
+        photo_data
         FROM $table_name
         ORDER BY last_updated DESC
     ");
@@ -759,6 +760,7 @@ function frg_add_cache_management_section() {
                 <tr>
                     <th>Album ID</th>
                     <th>Last Updated</th>
+                    <th>Photos</th>
                     <th>Cache Size</th>
                     <th>Status</th>
                 </tr>
@@ -773,7 +775,15 @@ function frg_add_cache_management_section() {
                             echo esc_html($time_diff) . ' ago';
                             ?>
                         </td>
-                        <td><?php echo esc_html(size_format(strlen($album->data_size), 2)); ?></td>
+                        <td>
+                            <?php 
+                            // Calculate number of photos in this album
+                            $album_data = json_decode($album->photo_data, true);
+                            $photo_count = isset($album_data['photoset']['photo']) ? count($album_data['photoset']['photo']) : 0;
+                            echo esc_html($photo_count) . ' photos';
+                            ?>
+                        </td>
+                        <td><?php echo esc_html(size_format($album->data_size, 2)); ?></td>
                         <td>
                             <?php
                             $age_hours = (current_time('timestamp') - strtotime($album->last_updated)) / HOUR_IN_SECONDS;
@@ -793,6 +803,64 @@ function frg_add_cache_management_section() {
         <?php endif; ?>
 
         <!-- Cache Information -->
+        <!-- Cache Repair Button -->
+        <div class="frg-cache-repair" style="margin-top: 20px;">
+            <h3>Cache Troubleshooting</h3>
+            <p>If you're experiencing issues with the gallery cache, use this button to repair the cache table and refresh all album data:</p>
+            
+            <form id="frg-repair-cache-form">
+                <?php wp_nonce_field('frg-repair-cache', 'repair_nonce'); ?>
+                <button type="submit" class="button button-secondary">
+                    <span class="dashicons dashicons-database-view" style="margin: 4px 5px 0 -5px;"></span>
+                    Repair &amp; Refresh Cache
+                </button>
+            </form>
+            
+            <div id="frg-repair-result" style="margin-top: 10px; display: none;"></div>
+            
+            <script>
+            jQuery(document).ready(function($) {
+                $('#frg-repair-cache-form').on('submit', function(e) {
+                    e.preventDefault();
+                    
+                    const $button = $(this).find('button');
+                    const $result = $('#frg-repair-result');
+                    
+                    $button.prop('disabled', true)
+                        .html('<span class="spinner is-active" style="float: none; margin: 0 5px 0 0;"></span> Repairing...');
+                    
+                    $result.hide();
+                    
+                    $.ajax({
+                        url: ajaxurl,
+                        type: 'POST',
+                        data: {
+                            action: 'frg_repair_cache',
+                            nonce: $('#repair_nonce').val()
+                        },
+                        success: function(response) {
+                            if (response.success) {
+                                $result.html('<div class="notice notice-success inline"><p>' + response.data.message + '</p></div>')
+                                    .show();
+                            } else {
+                                $result.html('<div class="notice notice-error inline"><p>Error: ' + (response.data.message || 'Unknown error') + '</p></div>')
+                                    .show();
+                            }
+                        },
+                        error: function() {
+                            $result.html('<div class="notice notice-error inline"><p>Network error. Please try again.</p></div>')
+                                .show();
+                        },
+                        complete: function() {
+                            $button.prop('disabled', false)
+                                .html('<span class="dashicons dashicons-database-view" style="margin: 4px 5px 0 -5px;"></span> Repair &amp; Refresh Cache');
+                        }
+                    });
+                });
+            });
+            </script>
+        </div>
+
         <div class="frg-cache-info card" style="margin-top: 20px; padding: 15px; background: #f0f6fc; border-left: 4px solid #2271b1;">
             <h4 style="margin-top: 0;">ℹ️ About Caching</h4>
             <p>The plugin caches Flickr album data to improve performance and reduce API calls. Cache is automatically refreshed:</p>

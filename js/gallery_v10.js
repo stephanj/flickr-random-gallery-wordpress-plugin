@@ -14,8 +14,9 @@
     }
   }
 
-function loadGallery($gallery) {
+function loadGallery($gallery, forceRefresh = false) {
     log('Starting gallery load');
+    log('Force refresh:', forceRefresh);
 
     // Find the refresh button for this gallery
     const $refreshButton = $gallery.closest('.flickr-random-gallery-container')
@@ -58,14 +59,22 @@ function loadGallery($gallery) {
       data: {
         action: 'frg_load_photos',
         nonce: frgAjax.nonce,
-        count: count
+        count: count,
+        force_refresh: forceRefresh // Add the force_refresh parameter
       }
     }).then(function(response) {
       log('Response received:', response);
+      
+      // Log cache status if available
+      if (response?.data?.cache) {
+        log('Cache status:', response.data.cache);
+      } else {
+        log('No cache data in response:', response);
+      }
 
-      if (response?.success && Array.isArray(response.data)) {
+      if (response?.success && Array.isArray(response.data.photos)) {
         // Don't replace all HTML, instead update each placeholder with actual content
-        response.data.forEach(function(photo, index) {
+        response.data.photos.forEach(function(photo, index) {
           log('Processing photo:', photo);
 
           const owner = photo.owner || photo.photoset?.owner || '';
@@ -113,6 +122,12 @@ function loadGallery($gallery) {
       }
     }).catch(function(error) {
       logError('AJAX error:', error);
+      
+      // Add more detailed logging
+      if (error.responseJSON) {
+        logError('Server response:', error.responseJSON);
+      }
+      
       $gallery.html('<p class="frg-error">Error loading gallery. Please try again later.</p>');
 
       // Update button text even on error
@@ -132,7 +147,7 @@ function loadGallery($gallery) {
   $(function() {
     log('Initializing galleries');
     document.querySelectorAll('.flickr-random-gallery').forEach(function(element) {
-      loadGallery($(element));
+      loadGallery($(element), false); // Default to not force refresh
     });
 
     // Add click handler for refresh buttons
@@ -140,7 +155,7 @@ function loadGallery($gallery) {
       e.preventDefault();
       const $gallery = $(this).closest('.flickr-random-gallery-container')
         .find('.flickr-random-gallery');
-      loadGallery($gallery);
+      loadGallery($gallery, false); // Don't force refresh - just reshuffle from cache
     });
   });
 
@@ -153,9 +168,9 @@ function loadGallery($gallery) {
   });
 
   // Add refresh method to window object
-  window.frgRefreshGallery = function(galleryElement) {
+  window.frgRefreshGallery = function(galleryElement, forceRefresh = false) {
     log('Manual gallery refresh triggered');
-    return loadGallery($(galleryElement));
+    return loadGallery($(galleryElement), forceRefresh);
   };
 
 })(jQuery);
