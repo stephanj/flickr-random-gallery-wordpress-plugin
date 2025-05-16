@@ -2,6 +2,43 @@
  * Flickr Random Gallery - Main Stylesheet
  * Version: 1.3
  */
+
+/* ==========================================================================
+   Placeholder Styles
+   ========================================================================== */
+.placeholder-wrapper {
+  background-color: #e0e0e0;
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.placeholder-shimmer {
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 50%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+  animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(400%); }
+}
+
+.image-wrapper img {
+  opacity: 0;
+  transition: opacity 0.3s ease-in-out;
+  will-change: opacity;
+}
+
+.image-wrapper img.loaded {
+  opacity: 1;
+}
+
 .flickr-random-gallery {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
@@ -110,29 +147,6 @@
   display: block;
   font-size: 14px;
   font-weight: 500;
-}
-
-/* ==========================================================================
-   Loading States
-   ========================================================================== */
-.frg-loading {
-  text-align: center;
-  padding: 20px;
-}
-
-.frg-spinner {
-  display: inline-block;
-  width: 40px;
-  height: 40px;
-  border: 4px solid #f3f3f3;
-  border-top: 4px solid #3498db;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
 }
 
 /* ==========================================================================

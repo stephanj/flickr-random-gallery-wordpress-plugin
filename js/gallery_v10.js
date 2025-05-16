@@ -14,8 +14,9 @@
     }
   }
 
-  function loadGallery($gallery) {
+function loadGallery($gallery, forceRefresh = false) {
     log('Starting gallery load');
+    log('Force refresh:', forceRefresh);
 
     // Find the refresh button for this gallery
     const $refreshButton = $gallery.closest('.flickr-random-gallery-container')
@@ -31,9 +32,26 @@
     // Get count from data attribute, fallback to default of 9
     const count = parseInt($gallery.data('count')) || 9;
     const target = $gallery.data('target') || '_blank';
+    const columns = parseInt($gallery.data('columns')) || 3;
 
     log('Loading gallery with count:', count);
 
+    // Create placeholders first
+    let placeholderHtml = '';
+    for (let i = 0; i < count; i++) {
+      placeholderHtml += `
+        <div class="gallery-item">
+            <div class="image-wrapper">
+                <div class="placeholder-wrapper">
+                    <div class="placeholder-shimmer"></div>
+                </div>
+            </div>
+        </div>
+      `;
+    }
+    $gallery.html(placeholderHtml);
+
+    // Now make the AJAX request to load actual images
     return $.ajax({
       url: frgAjax.ajaxurl,
       type: 'GET',
@@ -41,14 +59,22 @@
       data: {
         action: 'frg_load_photos',
         nonce: frgAjax.nonce,
-        count: count
+        count: count,
+        force_refresh: forceRefresh // Add the force_refresh parameter
       }
     }).then(function(response) {
       log('Response received:', response);
+      
+      // Log cache status if available
+      if (response?.data?.cache) {
+        log('Cache status:', response.data.cache);
+      } else {
+        log('No cache data in response:', response);
+      }
 
-      if (response?.success && Array.isArray(response.data)) {
-        let html = '';
-        response.data.forEach(function(photo) {
+      if (response?.success && Array.isArray(response.data.photos)) {
+        // Don't replace all HTML, instead update each placeholder with actual content
+        response.data.photos.forEach(function(photo, index) {
           log('Processing photo:', photo);
 
           const owner = photo.owner || photo.photoset?.owner || '';
@@ -56,25 +82,31 @@
           const imgUrl = photo.url_l || `https://farm${photo.farm}.staticflickr.com/${photo.server}/${photo.id}_${photo.secret}_z.jpg`;
 
           log('Generated URL:', photoPageUrl);
-
-          html += `
-                        <div class="gallery-item">
-                            <div class="image-wrapper">
-                                <a href="${photoPageUrl}" target="${target}" title="${photo.title}">
-                                    <img src="${imgUrl}"
-                                         alt="${photo.title}"
-                                         loading="lazy"
-                                         style="transition: transform 0.3s ease-in-out;">
-                                    <div class="overlay">
-                                        <span class="view-on-flickr">View on Flickr</span>
-                                    </div>
-                                </a>
-                            </div>
-                        </div>
-                    `;
+          
+          // Get the placeholder at the current index
+          const $galleryItem = $gallery.find('.gallery-item').eq(index);
+          if ($galleryItem.length) {
+            const $imageWrapper = $galleryItem.find('.image-wrapper');
+            
+            // Replace placeholder with actual image
+            $imageWrapper.html(`
+              <a href="${photoPageUrl}" target="${target}" title="${photo.title}">
+                <img src="${imgUrl}"
+                     alt="${photo.title}"
+                     loading="lazy"
+                     style="transition: transform 0.3s ease-in-out;">
+                <div class="overlay">
+                  <span class="view-on-flickr">View on Flickr</span>
+                </div>
+              </a>
+            `);
+            
+            // Set up image load event
+            $imageWrapper.find('img').on('load', function() {
+              $(this).addClass('loaded');
+            });
+          }
         });
-
-        $gallery.html(html);
 
         // After images are loaded, trigger layout adjustments
         $gallery.find('img').on('load', function() {
@@ -90,6 +122,12 @@
       }
     }).catch(function(error) {
       logError('AJAX error:', error);
+      
+      // Add more detailed logging
+      if (error.responseJSON) {
+        logError('Server response:', error.responseJSON);
+      }
+      
       $gallery.html('<p class="frg-error">Error loading gallery. Please try again later.</p>');
 
       // Update button text even on error
@@ -109,7 +147,7 @@
   $(function() {
     log('Initializing galleries');
     document.querySelectorAll('.flickr-random-gallery').forEach(function(element) {
-      loadGallery($(element));
+      loadGallery($(element), false); // Default to not force refresh
     });
 
     // Add click handler for refresh buttons
@@ -117,7 +155,7 @@
       e.preventDefault();
       const $gallery = $(this).closest('.flickr-random-gallery-container')
         .find('.flickr-random-gallery');
-      loadGallery($gallery);
+      loadGallery($gallery, false); // Don't force refresh - just reshuffle from cache
     });
   });
 
@@ -130,9 +168,9 @@
   });
 
   // Add refresh method to window object
-  window.frgRefreshGallery = function(galleryElement) {
+  window.frgRefreshGallery = function(galleryElement, forceRefresh = false) {
     log('Manual gallery refresh triggered');
-    return loadGallery($(galleryElement));
+    return loadGallery($(galleryElement), forceRefresh);
   };
 
 })(jQuery);
